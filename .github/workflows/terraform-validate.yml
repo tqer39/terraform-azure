@@ -1,0 +1,43 @@
+name: Terraform 検証
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # actions/checkout v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      # hashicorp/setup-terraform v4
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e
+        with:
+          terraform_version: 1.16.5
+          terraform_wrapper: false
+
+      - name: 検証スクリプトの回帰テスト
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Terraform の形式と構成を検証
+        run: python3 scripts/validate-terraform.py
+
+  workflow-result:
+    needs: terraform
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: 検証結果を確認
+        env:
+          TERRAFORM_RESULT: ${{ needs.terraform.result }}
+        run: test "$TERRAFORM_RESULT" = success
